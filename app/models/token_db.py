@@ -1,42 +1,36 @@
-import enum
+from datetime import datetime
 from secrets import token_urlsafe
 from typing import Annotated, Any, ClassVar, Self
-from pydantic import StringConstraints, Field
-from sqlalchemy import Enum, String
+from pydantic import Field, StringConstraints
+from sqlalchemy import String, select, func
 from sqlalchemy.orm import Mapped, mapped_column
 from pydantic_marshals.sqlalchemy import MappedModel
 
 from app.common.config import Base
-
-
-class TokenMode(str, enum.Enum):
-    STANDART = "standart"
-    RECURSIVE = "recursive"
+from app.common.sqla import db
 
 
 class Token(Base):
     __tablename__ = "tokens"
-    nbytes: ClassVar[int] = 8
+    nbytes: ClassVar[int] = 32
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(11))
-    name: Mapped[str | None] = mapped_column(
-        String(30), default=None, unique=True
-    )
-    mode: Mapped[TokenMode] = mapped_column(
-        Enum(TokenMode),
-        default=TokenMode.STANDART,
-    )
+    code: Mapped[str] = mapped_column(String(44), primary_key=True)
+    identity: Mapped[str] = mapped_column(String(150))
+    invitee_code: Mapped[str | None] = mapped_column(String(44), default=None)
+    joined: Mapped[datetime] = mapped_column(default=datetime.utcnow())
 
-    NameType = Annotated[
-        str | None,
+    IdentityType = Annotated[
+        str,
         StringConstraints(strip_whitespace=True),
-        Field(min_length=3, max_length=30),
+        Field(min_length=3, max_length=150),
     ]
 
-    FullModel = MappedModel.create(columns=[code, (name, NameType), mode])
-    NameModel = MappedModel.create(columns=[(name, NameType)])
-    PatchModel = MappedModel.create(columns=[(name, NameType), mode])
+    FullModel = MappedModel.create(
+        columns=[code, identity, joined, invitee_code]
+    )
+    CreateModel = MappedModel.create(
+        columns=[(identity, IdentityType), invitee_code]
+    )
 
     def generate_token() -> str:
         return token_urlsafe(Token.nbytes)
@@ -49,3 +43,35 @@ class Token(Base):
                 raise RuntimeError("Token collision happened")
             kwargs["code"] = code
         return await super().create(**kwargs)
+
+    @classmethod
+    async def get_referrals(cls, code: str) -> Self | None:
+        return await db.get_all(select(cls).filter_by(invitee_code=code))
+
+    @classmethod
+    async def get_referral_parents(cls, code: str):
+        included_parts = (
+            select(
+                cls.invitee_code,
+                cls.code,
+            )
+            .where(cls.code == code)
+            .cte(recursive=True)
+        )
+
+        incl_alias = included_parts.alias()
+
+        included_parts = included_parts.union_all(
+            select(
+                cls.invitee_code,
+                cls.code,
+            ).where(cls.code == incl_alias.c.invitee_code)
+        )
+
+        statement = (
+            select(included_parts.c.invitee_code)
+            .group_by(included_parts.c.invitee_code)
+        )
+
+        result = await db.session.execute(statement)
+        return result
