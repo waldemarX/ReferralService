@@ -2,7 +2,7 @@ from datetime import datetime
 from secrets import token_urlsafe
 from typing import Annotated, Any, ClassVar, Self
 from pydantic import Field, StringConstraints
-from sqlalchemy import String, select, func
+from sqlalchemy import String, TIMESTAMP, select
 from sqlalchemy.orm import Mapped, mapped_column
 from pydantic_marshals.sqlalchemy import MappedModel
 
@@ -17,7 +17,9 @@ class Token(Base):
     code: Mapped[str] = mapped_column(String(44), primary_key=True)
     identity: Mapped[str] = mapped_column(String(150))
     invitee_code: Mapped[str | None] = mapped_column(String(44), default=None)
-    joined: Mapped[datetime] = mapped_column(default=datetime.utcnow())
+    joined: Mapped[datetime] = mapped_column(
+        TIMESTAMP, default=datetime.utcnow, nullable=False
+    )
 
     IdentityType = Annotated[
         str,
@@ -45,33 +47,64 @@ class Token(Base):
         return await super().create(**kwargs)
 
     @classmethod
-    async def get_referrals(cls, code: str) -> Self | None:
+    async def get_referral_list(cls, code: str) -> Self | None:
         return await db.get_all(select(cls).filter_by(invitee_code=code))
 
     @classmethod
-    async def get_referral_parents(cls, code: str):
-        included_parts = (
+    async def get_referral_parent_list(cls, code: str) -> list[tuple]:
+        anchor = (
             select(
-                cls.invitee_code,
                 cls.code,
+                cls.identity,
+                cls.invitee_code,
+                cls.joined,
             )
             .where(cls.code == code)
             .cte(recursive=True)
         )
-
-        incl_alias = included_parts.alias()
-
-        included_parts = included_parts.union_all(
+        recursive_part = anchor.union_all(
             select(
-                cls.invitee_code,
                 cls.code,
-            ).where(cls.code == incl_alias.c.invitee_code)
+                cls.identity,
+                cls.invitee_code,
+                cls.joined,
+            ).where(anchor.c.invitee_code == cls.code)
         )
+        statement = select(
+            recursive_part.c.code,
+            recursive_part.c.identity,
+            recursive_part.c.invitee_code,
+            recursive_part.c.joined,
+        ).filter(recursive_part.c.code != code)
 
-        statement = (
-            select(included_parts.c.invitee_code)
-            .group_by(included_parts.c.invitee_code)
+        return await db.session.execute(statement)
+
+    @classmethod
+    async def get_referral_tree_list(cls, code: str) -> list[tuple]:
+        anchor = (
+            select(
+                cls.code,
+                cls.identity,
+                cls.invitee_code,
+                cls.joined,
+            )
+            .where(cls.code == code)
+            .cte(recursive=True)
+        )
+        recursive_part = anchor.union_all(
+            select(
+                cls.code,
+                cls.identity,
+                cls.invitee_code,
+                cls.joined,
+            ).join(anchor, anchor.c.code == cls.invitee_code)
+        )
+        statement = select(
+            recursive_part.c.code,
+            recursive_part.c.identity,
+            recursive_part.c.invitee_code,
+            recursive_part.c.joined,
         )
 
         result = await db.session.execute(statement)
-        return result
+        return result.fetchall()
