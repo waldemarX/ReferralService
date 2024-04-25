@@ -189,13 +189,13 @@ idna = ">=2.0.0"
 
 [[package]]
 name = "fastapi"
-version = "0.110.1"
+version = "0.110.2"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "fastapi-0.110.1-py3-none-any.whl", hash = "sha256:5df913203c482f820d31f48e635e022f8cbfe7350e4830ef05a3163925b1addc"},
-    {file = "fastapi-0.110.1.tar.gz", hash = "sha256:6feac43ec359dfe4f45b2c18ec8c94edb8dc2dfc461d417d9e626590c071baad"},
+    {file = "fastapi-0.110.2-py3-none-any.whl", hash = "sha256:239403f2c0a3dda07a9420f95157a7f014ddb2b770acdbc984f9bdf3ead7afdb"},
+    {file = "fastapi-0.110.2.tar.gz", hash = "sha256:b53d673652da3b65e8cd787ad214ec0fe303cad00d2b529b86ce7db13f17518d"},
 ]
 
 [package.dependencies]
@@ -708,13 +708,13 @@ all = ["pendulum (>=3.0.0,<4.0.0)", "phonenumbers (>=8,<9)", "pycountry (>=23)",
 
 [[package]]
 name = "pydantic-marshals"
-version = "0.3.12"
+version = "0.3.13"
 description = "Library for creating partial pydantic models (automatic converters) from different mappings"
 optional = false
-python-versions = ">=3.10,<4.0"
+python-versions = "<4.0,>=3.10"
 files = [
-    {file = "pydantic_marshals-0.3.12-py3-none-any.whl", hash = "sha256:a42262da8292794b482738301139cfe543add93abf8588ff214045a2e6feaca8"},
-    {file = "pydantic_marshals-0.3.12.tar.gz", hash = "sha256:1f39cbbc88d731b909b080e524bbdf73d285dee23b573c558e3e32c271c6b1c5"},
+    {file = "pydantic_marshals-0.3.13-py3-none-any.whl", hash = "sha256:a80159cee9a2e3a43c6203c563d31b3f22055df1cecc5793b3f5f03b15d26b7b"},
+    {file = "pydantic_marshals-0.3.13.tar.gz", hash = "sha256:9a9732f8fd813fbd802e49c21f06da94e852e0181b1fddad35b1928c7ad4e906"},
 ]
 
 [package.dependencies]

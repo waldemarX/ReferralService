@@ -22,7 +22,7 @@ async def create_token(data: Token.CreateModel):
     responses=TokenResponses.responses(),
     summary="Retrieve referral token information",
 )
-async def get_token_information(token: TargetToken):
+async def retrieve_token_information(token: TargetToken):
     return token
 
 
